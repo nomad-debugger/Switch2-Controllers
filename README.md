@@ -1,86 +1,81 @@
-# Nintendo Switch BLE Enabler Daemon
+# Switch Bluetooth Controllers
 
-Dieses Tool aktiviert Bluetooth-fähige Nintendo Switch Controller (Pro Controller, Joy-Con, GameCube) über BLE (Bluetooth Low Energy), indem es den notwendigen Initialisierungs-Handshake durchführt und die Controller für die Nutzung auf anderen Systemen vorbereitet.
+A Python toolkit for scanning, connecting, and monitoring Nintendo Switch-compatible controllers (Pro Controller, Joy-Con, GameCube Controller) via Bluetooth. Designed to support controller detection, data monitoring, and feature exploration on multiple platforms using the [bleak](https://github.com/hbldh/bleak) Bluetooth library.
+Some functions noted here may not be working right now so sorry 
 
-Der Daemon funktioniert ähnlich wie der NS2-USB-Enabler, jedoch für Bluetooth-Verbindungen.
 
-## Funktionen
+> **Note:** This repository is intended as a universal base for all future tools and programs related to Nintendo Switch and compatible Bluetooth controllers. Contributions and extensions are welcome.
 
-- Erkennung von Nintendo Switch Pro Controller, Joy-Con und GameCube-Controllern über BLE
-- Durchführen der Initialisierungssequenz (wie beim originalen SW2-Code)
-- Konfiguration der Controller-LEDs
-- Mapping von Controller-Eingängen auf ein Standard-Format
-- Rumble-Feedback-Support
+> **This repository contains portions of code or information derived from sources licensed as follows:**  
+> **Copyright (c) 2025, Jacques Gagnon**  
+> **SPDX-License-Identifier: Apache-2.0**
 
-## Voraussetzungen
+## Features
 
-- Linux-System mit Bluetooth
-- Bluetooth 4.0+ Adapter mit BLE-Unterstützung
-- GattLib-Bibliothek
-- Root-Rechte für Bluetooth-Zugriff
+- **Bluetooth Device Scanning**: Quickly discover Nintendo Switch-compatible controllers around you.
+- **Controller Monitoring**: View button presses and stick movements in real-time.
+- **Interactive Mode**: Toggle debug/verbose output, rumble, LED indicators, and show raw report data during runtime (best on Linux/macOS).
+- **Multi-platform Support**: Compatible with Windows(tested), Linux, and macOS(tested) (interactivity may be limited on Windows).
+- **Extensible Mapping**: Supports both Joy-Con, Pro Controller, and GameCube Controller mappings.
+- **Open for Extensions**: Designed to be a base for further Python tools for Nintendo and compatible Bluetooth controllers.
 
-## Installation
+## Supported Controllers
 
-1. Installiere die benötigten Pakete:
+- Nintendo Switch Pro Controller
+- Nintendo Switch Joy-Con (L/R, only separately)
+- Nintendo GameCube Controller
 
-```bash
-sudo apt-get install libbluetooth-dev libglib2.0-dev
-sudo apt-get install libreadline-dev
-```
+## Quick Start
 
-2. Installiere GattLib:
+### Requirements
 
-```bash
-git clone https://github.com/labapart/gattlib
-cd gattlib
-mkdir build && cd build
-cmake -DGATTLIB_PYTHON_INTERFACE=OFF -DGATTLIB_BUILD_EXAMPLES=OFF ..
-make
-sudo make install
-sudo ldconfig
-```
+- Python 3.7+
+- [bleak](https://pypi.org/project/bleak/) (`pip install bleak`)
 
-3. Kompiliere den BLE-Enabler:
+### Usage
 
 ```bash
-git clone https://github.com/your-username/ns2-ble-enabler
-cd ns2-ble-enabler
-make
+python3 ns2_bluetooth_monitor.py [options]
 ```
 
-## Verwendung
+**Options:**
 
-1. Bringe den Controller in den Pairing-Modus:
-   - Pro Controller/GameCube: Halte die kleine Pairing-Taste auf der Oberseite gedrückt, bis die LEDs blinken
-   - Joy-Con: Halte die SL+SR-Tasten gedrückt
+- `-d`, `--debug` Enable debug output
+- `-v`, `--verbose` Enable verbose output
 
-2. Starte den Daemon mit Root-Rechten:
+### Interactive Controls (during runtime)
 
-```bash
-sudo ./bt_enabler_daemon
-```
+- `r` Test rumble
+- `1`-`8` Set player LED
+- `d` Toggle debug mode
+- `v` Toggle verbose mode
+- `x` Show raw data (byte values)
+- `Ctrl+C` Exit
 
-3. Der Daemon sucht nun nach kompatiblen Controllern, verbindet sich und führt die Initialisierung durch.
+> **Note:** Some interactive features may not work reliably on Windows due to OS limitations.
 
-4. Nach erfolgreicher Initialisierung gibt der Daemon die Controller-Eingaben in der Konsole aus.
+## Pairing Instructions
 
-5. Beenden mit Strg+C
+1. **Put controller in pairing mode:**
+   - Pro Controller: Hold the small pairing button on top
+   - Joy-Con: Hold the pairing button on the side
+   - GameCube Controller: Hold the pairing button on the adapter
+2. Ensure the controller is not already connected to another device.
+3. Run the program and follow the on-screen instructions.
 
-## Fehlerbehebung
+## Roadmap & Contribution
 
-- **Controller wird nicht gefunden**: Stelle sicher, dass der Controller im Pairing-Modus ist (LEDs blinken)
-- **Verbindungsfehler**: Überprüfe, ob der Bluetooth-Adapter korrekt funktioniert
-- **Berechtigungsprobleme**: Starte den Daemon mit sudo-Rechten
-- **Initialisierungsfehler**: Entferne den Controller aus den Bluetooth-Geräten und versuche es erneut
+- Add support for combined Joy-Con mode
+- Improved cross-platform keyboard interactivity
+- Integrate advanced rumble/LED scripting
 
-## Weitere Entwicklung
+Contributions, issues, and feature requests are welcome!
 
-Der Code kann noch weiter angepasst werden:
-- Integration mit udev für automatische Gerätererkennung
-- Daemon-Modus (Hintergrund)
-- Konfigurationsdatei für benutzerdefinierte Einstellungen
-- Vollständiger GameCube-Controller-Support
+## License
 
-## Lizenz
+MIT License  
+Parts of this repository are derived from sources licensed under Apache-2.0 (see notices above).
 
-Apache-2.0, basierend auf der Original-Arbeit von Jacques Gagnon
+---
+
+**This repository is for experimentation, learning, and controller interfacing. It is not affiliated with or endorsed by Nintendo.**
