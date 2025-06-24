@@ -35,7 +35,7 @@ Some functions noted here may not be working right now so sorry
 ### Usage
 
 ```bash
-python3 ns2_bluetooth_monitor.py [options]
+python3 ns2-ble-monitor.py [options]
 ```
 
 **Options:**
