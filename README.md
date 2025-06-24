@@ -65,6 +65,7 @@ python3 ns2-ble-monitor.py [options]
 
 ## Roadmap & Contribution
 
+- Get all features working
 - Add support for combined Joy-Con mode
 - Improved cross-platform keyboard interactivity
 - Integrate advanced rumble/LED scripting
