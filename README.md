@@ -29,7 +29,7 @@ Some functions noted here may not be working right now so sorry
 
 ### Requirements
 
-- Python 3.7+
+- Python 3.7+ (tested in 3.12)
 - [bleak](https://pypi.org/project/bleak/) (`pip install bleak`)
 
 ### Usage
