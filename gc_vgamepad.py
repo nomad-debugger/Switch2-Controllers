@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-NS2 Bluetooth Monitor (Python) v1.4
-With Interactivity: debug/verbose/rumble/LED/raw data togglable via keyboard during runtime!(not really working especially on Windows)
+NS2 Bluetooth Monitor (Python) v1.5
+With Interactivity: debug/verbose/rumble/LED/raw data togglable via keyboard during runtime!
 Joy Cons only work alone not together
 """
 
@@ -10,6 +10,8 @@ import signal
 import sys
 import platform
 import argparse
+import threading
+import time
 from enum import IntEnum
 from bleak import BleakScanner, BleakClient
 import vgamepad as vg
@@ -138,6 +140,10 @@ nintendo_device_info = {}
 current_state = ControllerState.READ_INFO
 last_raw_data = None
 
+# Global reference to the current BLE client for rumble callback
+current_ble_client = None
+rumble_event_loop = None
+
 def handle_signal(signum, frame):
     global keep_running
     print("\nProgram is terminating...")
@@ -264,8 +270,6 @@ def normalize_axis(value, min_val=746, center_val=1998, max_val=3249):
         # Moving up → negative axis (-32768)
         return int(((value - center_val) / (center_val - min_val)) * 32768)
 
-
-
 async def notification_callback(sender, data):
     global controller_state, last_raw_data
     if not data or len(data) < 10:
@@ -357,6 +361,60 @@ async def dump_raw_data():
             print(f"{i:04X}: {hex_values:<24} | {ascii_values}")
         print()
 
+def async_rumble_handler(large_motor, small_motor):
+    """Handle rumble in async context"""
+    global current_ble_client, rumble_event_loop
+    
+    if not current_ble_client or not rumble_event_loop:
+        log_debug("No BLE client or event loop available for rumble")
+        return
+    
+    log_debug(f"Received rumble request - large: {large_motor}, small: {small_motor}")
+    
+    if large_motor > 0 or small_motor > 0:
+        # Schedule the coroutine in the event loop running the BLE client
+        def run_rumble():
+            try:
+                future = asyncio.run_coroutine_threadsafe(
+                    perform_rumble_sequence(), rumble_event_loop
+                )
+                future.result(timeout=2.0)  # Wait up to 2 seconds
+            except Exception as e:
+                log_debug(f"Error scheduling rumble: {e}")
+        
+        # Run in a separate thread to avoid blocking
+        threading.Thread(target=run_rumble, daemon=True).start()
+
+async def perform_rumble_sequence():
+    """Perform the actual rumble sequence"""
+    global current_ble_client
+    try:
+        if current_ble_client:
+            log_debug("Starting rumble sequence")
+            await set_rumble(current_ble_client, True)
+            await asyncio.sleep(0.2)  # Brief rumble duration
+            await set_rumble(current_ble_client, False)
+            log_debug("Rumble sequence completed")
+    except Exception as e:
+        log_debug(f"Error in rumble sequence: {e}")
+
+def vgamepad_notification_callback(client, target, large_motor, small_motor, led_number, user_data):
+    """
+    Synchronous callback for vgamepad notifications.
+    This schedules async rumble handling.
+    """
+    async_rumble_handler(large_motor, small_motor)
+
+def setup_vgamepad_callback():
+    """Setup the vgamepad notification callback"""
+    try:
+        gamepad.register_notification(callback_function=vgamepad_notification_callback)
+        log_debug("vgamepad notification callback registered successfully")
+        return True
+    except Exception as e:
+        log_debug(f"Failed to register vgamepad callback: {e}")
+        return False
+        
 async def handle_keyboard_input(client):
     global debug_mode, verbose_mode, keep_running
     # This runs as a background task!
@@ -433,17 +491,29 @@ async def find_characteristics(client):
         return False
 
 async def initialize_controller(client, device):
-    global current_state, controller_state, input_characteristic, output_characteristic
+    global current_state, controller_state, input_characteristic, output_characteristic, current_ble_client, rumble_event_loop
     controller_info = nintendo_device_info.get(device.address, {})
     pid = controller_info.get('product_id', PRODUCT_ID_PRO)
     controller_state = {'product_id': pid, 'connected': True}
+    current_ble_client = client  # Store reference for rumble callback
+    rumble_event_loop = asyncio.get_event_loop()  # Store current event loop
+    
     if not await find_characteristics(client):
         print("❌ Could not find suitable characteristics.")
         return False
     print("⏳ Initializing controller...")
     current_state = ControllerState.DONE
     await client.start_notify(input_characteristic, notification_callback)
+    
+    # Setup vgamepad callback for rumble support
+    callback_success = setup_vgamepad_callback()
+    
     print(f"✅ Controller successfully initialized! ({get_nintendo_device_name(device)})")
+    if callback_success:
+        print("🎮 Rumble callback registered - games should be able to rumble the controller!")
+    else:
+        print("⚠️ Rumble callback registration failed - manual rumble only")
+        
     print("\n📊 Receiving controller data...")
     print("📍 Move sticks and press buttons to see the data...")
     print("   - Press Ctrl+C to quit")
@@ -452,12 +522,15 @@ async def initialize_controller(client, device):
     print("   - d: Toggle debug mode")
     print("   - v: Toggle verbose mode")
     print("   - x: Show raw data (byte values)")
+    if callback_success:
+        print("   - Rumble from games should work automatically!")
+    
     # Start the keyboard handler as a background task!
     asyncio.create_task(handle_keyboard_input(client))
     return True
 
 async def connect_to_device(device):
-    global controller_state
+    global controller_state, current_ble_client, rumble_event_loop
     device_name = get_nintendo_device_name(device)
     print(f"\n🔄 Connecting to {device_name} ({device.address})...")
     try:
@@ -472,6 +545,9 @@ async def connect_to_device(device):
     except Exception as e:
         print(f"❌ Connection error: {e}")
         controller_state = None
+    finally:
+        current_ble_client = None  # Clear reference when disconnected
+        rumble_event_loop = None   # Clear event loop reference
 
 async def scan_for_nintendo_devices():
     print("\n🔍 Searching for Nintendo Switch controllers (5 seconds)...")
@@ -494,7 +570,7 @@ async def scan_for_nintendo_devices():
         return []
 
 async def main():
-    print("\n🎮 NS2 Bluetooth Enabler (Python) v1.4")
+    print("\n🎮 NS2 Bluetooth Enabler (Python) v1.5")
     print("======================================")
     print(f"🖥️  Platform: {platform.system()} {platform.release()}")
     print(f"🐍 Python: {platform.python_version()}")
