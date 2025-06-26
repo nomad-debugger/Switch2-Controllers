@@ -1,3 +1,5 @@
+This is a fork of the original repo to add gc_vgamepad.py, which converts the wireless GameCube controller input into an Xinput device that you can use with Dolphin. Stil quite rough around the edges, but it works. Original readme below.
+
 # Switch Bluetooth Controllers
 
 A Python toolkit for scanning, connecting, and monitoring Nintendo Switch-compatible controllers (Pro Controller, Joy-Con, GameCube Controller) via Bluetooth. Designed to support controller detection, data monitoring, and feature exploration on multiple platforms using the [bleak](https://github.com/hbldh/bleak) Bluetooth library.
