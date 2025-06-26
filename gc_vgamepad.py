@@ -24,6 +24,7 @@ PRODUCT_ID_PRO = 0x2009
 PRODUCT_ID_L = 0x2006
 PRODUCT_ID_R = 0x2007
 PRODUCT_ID_GC = 0x2073
+rumble_counter = 0
 
 # UUIDs
 HID_SERVICE_UUID = "00001812-0000-1000-8000-00805f9b34fb"
@@ -154,8 +155,7 @@ def log_debug(message):
         print(f"[DEBUG] {message}")
 
 def log_verbose(message):
-    if verbose_mode:
-        print(f"[VERBOSE] {message}")
+    print(f"[VERBOSE] {message}")
 
 def extract_nintendo_info(manufacturer_data):
     if not manufacturer_data:
@@ -340,13 +340,21 @@ async def set_player_leds(client, player_num=1):
     return await send_command(client, led_cmd)
 
 async def set_rumble(client, on=True):
+    global rumble_counter
+    
+    # NS2 rumble format based on BlueRetro developer's specification
     rumble_cmd = bytearray([
-        0x10, 0x01, 0x00, 0x00,
+        0x50,  # out[0] - NS2 rumble command identifier
+        0x50 | (rumble_counter & 0x0F),  # out[1] - 4 MSB set to 5 (0x50), 4 LSB are counter
+        0x01 if on else 0x00,  # out[2] - rumble state: 0x01 = on, 0x00 = off
+        0x00, 0x00, 0x00, 0x00, 0x00,  # Padding to match expected packet size
     ])
-    if on:
-        rumble_cmd.extend([0x00, 0x01, 0x40, 0x40, 0x00, 0x01, 0x40, 0x40])
-    else:
-        rumble_cmd.extend([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
+    
+    # Increment counter for next rumble command (wraps around 0-15)
+    rumble_counter = (rumble_counter + 1) & 0x0F
+    
+    log_verbose(f"Sending NS2 rumble command: {rumble_cmd.hex(' ')} (counter: {rumble_counter-1 & 0x0F}, state: {'ON' if on else 'OFF'})")
+    
     return await send_command(client, rumble_cmd)
 
 async def dump_raw_data():
@@ -416,6 +424,9 @@ def setup_vgamepad_callback():
         return False
         
 async def handle_keyboard_input(client):
+    await set_rumble(client, True)
+    await asyncio.sleep(0.5)
+    await set_rumble(client, False)
     global debug_mode, verbose_mode, keep_running
     # This runs as a background task!
     while keep_running:
